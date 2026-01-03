@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Schola da Mente - Palavras Cruzadas</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --schola-blue: #1e3a8a;
+            --schola-gold: #fbbf24;
+            --schola-bg: #f8fafc;
+            /* Ajuste dinâmico para evitar scroll em telas pequenas */
+            --cell-size: clamp(28px, 8vw, 48px);
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--schola-bg);
+            color: #334155;
+            height: 100vh;
+            /* Evita comportamento de elástico no iOS */
+            overscroll-behavior: none;
+            overflow: hidden; 
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+        }
+
+        /* --- UTILITÁRIOS --- */
+        .btn-action { transition: transform 0.1s; }
+        .btn-action:active { transform: translateY(2px); }
+
+        /* --- LAYOUT GERAL --- */
+        .game-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-bottom: 70px; /* Espaço para o rodapé */
+            width: 100%;
+        }
+
+        /* --- GRADE --- */
+        .grid-section {
+            margin-top: 5px;
+            margin-bottom: 10px;
+            padding: 2px;
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            flex-shrink: 0; /* Evita que a grade encolha demais */
+        }
+
+        .crossword-wrapper {
+            background: #fff;
+            padding: 5px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 2px solid #1e3a8a;
+            max-width: 98vw;
+            /* Permite rolagem interna apenas se a grade for realmente gigante */
+            overflow: auto; 
+        }
+
+        .crossword-grid {
+            display: grid;
+            gap: 1px;
+            background-color: #334155; 
+            border: 2px solid #334155;
+            margin: 0 auto;
+        }
+
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            background-color: #fff;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .cell.block { background-color: #000; cursor: default; }
+
+        .cell-number {
+            position: absolute;
+            top: 0px;
+            left: 1px;
+            font-size: calc(var(--cell-size) * 0.3);
+            line-height: 1;
+            color: #000;
+            font-weight: 700;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .cell-letter {
+            font-size: calc(var(--cell-size) * 0.7);
+            font-weight: 700;
+            color: #1e293b;
+            line-height: 1;
+            margin-top: 4px;
+        }
+
+        /* Destaques */
+        .cell.highlighted-word { background-color: #bfdbfe; }
+        .cell.selected { 
+            background-color: var(--schola-gold) !important; 
+            transform: scale(1.05); 
+            z-index: 5; 
+            box-shadow: 0 0 5px rgba(0,0,0,0.2); 
+            border: 1px solid #b45309;
+        }
+        .cell.correct { background-color: #dcfce7 !important; color: #166534; }
+        .cell.wrong { animation: shake 0.4s; background-color: #fee2e2 !important; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-3px); }
+            75% { transform: translateX(3px); }
+        }
+
+        /* --- LISTA DE PERGUNTAS COMPACTA --- */
+        .clues-container {
+            width: 98%;
+            max-width: 800px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 10px;
+            flex: 1; /* Ocupa o resto do espaço */
+            min-height: 150px;
+        }
+
+        .clue-column {
+            flex: 1 1 300px; 
+            padding: 8px;
+            border: 1px solid #f1f5f9;
+            overflow-y: auto; /* Scroll individual nas listas se necessário */
+            max-height: 35vh; /* Limita altura para não estourar a tela */
+        }
+
+        .clue-list-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #1e3a8a;
+            border-bottom: 2px solid #fbbf24;
+            margin-bottom: 6px;
+            padding-bottom: 2px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 2;
+        }
+
+        .clue-item {
+            font-size: 0.85rem; 
+            margin-bottom: 4px;
+            padding: 4px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            line-height: 1.2;
+            display: flex;
+            align-items: flex-start;
+        }
+        .clue-item:hover { background-color: #f8fafc; }
+        .clue-item.active-clue { 
+            background-color: #eff6ff; 
+            border-left: 3px solid #1e3a8a;
+            font-weight: 600;
+        }
+        .clue-item.solved-clue {
+            opacity: 0.5;
+            text-decoration: line-through;
+            color: #166534;
+        }
+        .clue-number-badge {
+            background: #1e3a8a;
+            color: white;
+            font-size: 0.7rem;
+            font-weight: bold;
+            padding: 1px 5px;
+            border-radius: 3px;
+            margin-right: 6px;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        /* --- RODAPÉ FIXO COMPACTO --- */
+        .fixed-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: white;
+            border-top: 1px solid #cbd5e1;
+            z-index: 50;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+            padding-bottom: env(safe-area-inset-bottom); /* Ajuste iPhone X+ */
+        }
+
+        #hidden-input { position: absolute; opacity: 0; top: -1000px; }
+
+        /* Mobile tweaks */
+        @media (max-width: 640px) {
+            .clue-column { max-height: none; height: auto; }
+            .game-content { padding-bottom: 110px; } /* Mais espaço para teclado/footer */
+            
+            /* Compactar Header */
+            header { padding: 0.5rem !important; }
+            header h1 { font-size: 1.5rem !important; margin-bottom: 0 !important; }
+            #game-player-display { font-size: 0.9rem; }
+            
+            /* Ajuste grade */
+            .grid-section { margin-top: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <input type="text" id="hidden-input" autocomplete="off" autocorrect="off" autocapitalize="characters">
+
+    <!-- LOGIN -->
+    <div id="screen-login" class="absolute inset-0 z-50 bg-white flex flex-col items-center justify-center p-4 text-center">
+        <div class="mb-6">
+            <i class="fas fa-brain text-6xl text-blue-800 mb-4 animate-bounce"></i>
+            <h1 class="text-3xl font-bold text-blue-900">Schola da Mente</h1>
+            <p class="text-lg text-yellow-600 font-bold mt-1">PALAVRAS CRUZADAS</p>
+        </div>
+        <div class="w-full max-w-sm bg-blue-50 p-6 rounded-xl border-2 border-blue-200 shadow-xl">
+            <label class="block text-blue-900 font-bold mb-3">Seu Nome:</label>
+            <input type="text" id="username-input" class="w-full p-3 text-xl text-center border-2 border-blue-300 rounded-lg focus:border-yellow-500 mb-6 uppercase text-blue-900 font-bold outline-none shadow-inner" placeholder="DIGITE AQUI" maxlength="12">
+            <button onclick="goToSettings()" class="w-full bg-blue-800 hover:bg-blue-700 text-white text-xl font-bold py-4 rounded-xl shadow-lg btn-action transform active:scale-95 transition">ENTRAR</button>
+        </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="screen-settings" class="hidden absolute inset-0 z-40 bg-blue-50 flex flex-col items-center justify-center p-4">
+        <div class="w-full max-w-md text-center bg-white p-6 rounded-xl shadow-2xl border-2 border-white">
+            <h2 class="text-2xl font-bold text-blue-900 mb-6">Olá, <span id="display-name" class="text-yellow-600"></span>!</h2>
+            
+            <div class="mb-6 text-left bg-blue-50 p-3 rounded-lg">
+                <p class="text-blue-800 font-bold mb-2 text-xs uppercase tracking-wider">Nível de Dificuldade</p>
+                <div class="flex gap-2">
+                    <button onclick="selectDifficulty('easy')" id="btn-easy" class="flex-1 py-3 border-2 border-green-500 text-green-700 font-bold rounded-lg hover:bg-green-50 text-sm shadow-sm">FÁCIL</button>
+                    <button onclick="selectDifficulty('medium')" id="btn-medium" class="flex-1 py-3 border-2 border-yellow-500 text-yellow-700 font-bold rounded-lg hover:bg-yellow-50 text-sm shadow-sm">MÉDIO</button>
+                    <button onclick="selectDifficulty('hard')" id="btn-hard" class="flex-1 py-3 border-2 border-red-500 text-red-700 font-bold rounded-lg hover:bg-red-50 text-sm shadow-sm">DIFÍCIL</button>
+                </div>
+            </div>
+
+            <div class="mb-6 text-left bg-blue-50 p-3 rounded-lg">
+                <p class="text-blue-800 font-bold mb-2 text-xs uppercase tracking-wider">Escolha o Tema</p>
+                <select id="theme-select" class="w-full p-3 text-lg border-2 border-blue-300 rounded-lg text-blue-900 bg-white font-bold outline-none focus:border-yellow-500 shadow-sm"></select>
+            </div>
+
+            <button onclick="startGame()" class="w-full bg-yellow-500 text-blue-900 text-xl font-bold py-4 rounded-xl shadow-lg btn-action hover:bg-yellow-400 border-b-4 border-yellow-600 active:border-b-0 active:mt-1">JOGAR</button>
+        </div>
+    </div>
+
+    <!-- GAME -->
+    <div id="screen-game" class="hidden flex flex-col h-full bg-slate-50 relative z-30">
+        
+        <!-- Header Principal Compacto -->
+        <header class="bg-blue-900 text-white p-2 shadow-lg flex flex-col items-center justify-center shrink-0 z-20 relative">
+            <h1 id="game-theme-display" class="text-2xl font-extrabold text-yellow-400 uppercase tracking-wide drop-shadow-md leading-none">TEMA</h1>
+            
+            <div class="w-full flex justify-between items-end px-2 max-w-4xl mt-1">
+                <div class="text-blue-200 font-semibold text-xs">
+                    <i class="fas fa-user mr-1"></i> <span id="game-player-display">Jogador</span>
+                </div>
+                <div class="flex gap-3">
+                    <div class="text-center">
+                        <span class="text-[9px] uppercase font-bold text-blue-300 block">Progresso</span>
+                        <span class="font-bold text-white text-sm"><span id="words-found">0</span>/<span id="words-total">0</span></span>
+                    </div>
+                    <div class="flex items-center bg-blue-800 px-2 py-0.5 rounded-full border border-blue-600 shadow-inner">
+                        <i class="fas fa-coins text-yellow-400 mr-1 text-sm"></i>
+                        <span id="coin-balance" class="font-bold text-white text-md">0</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Área de Conteúdo -->
+        <div class="game-content" onclick="focusInput()">
+            
+            <!-- Grade -->
+            <div class="grid-section">
+                <div id="grid-wrapper" class="crossword-wrapper"></div>
+            </div>
+
+            <!-- Lista de Perguntas -->
+            <div id="clues-container" class="clues-container">
+                <div class="clue-column">
+                    <h3 class="clue-list-title"><i class="fas fa-arrows-alt-h mr-1 text-blue-600"></i> Horizontais</h3>
+                    <div id="clues-horizontal-list"></div>
+                </div>
+                <div class="clue-column">
+                    <h3 class="clue-list-title"><i class="fas fa-arrows-alt-v mr-1 text-blue-600"></i> Verticais</h3>
+                    <div id="clues-vertical-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback Toast (Sucesso e Erro) -->
+        <div id="feedback-message" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 hidden z-50 pointer-events-none w-10/12 max-w-sm">
+            <!-- Conteúdo injetado via JS -->
+        </div>
+
+        <!-- Rodapé Fixo -->
+        <footer class="fixed-footer">
+            <div class="bg-yellow-50 border-b border-yellow-200 p-2 text-center">
+                <p id="footer-current-clue" class="text-sm md:text-base text-blue-900 font-bold leading-tight line-clamp-1">
+                    Selecione uma palavra
+                </p>
+            </div>
+            <div class="p-2 flex gap-2 justify-center bg-white max-w-lg mx-auto">
+                <button onclick="resetGame()" class="flex-1 py-2 bg-slate-100 border border-slate-300 rounded text-slate-700 font-bold text-xs shadow-sm active:bg-slate-200"><i class="fas fa-redo mr-1"></i> REINICIAR</button>
+                <button onclick="goToSettings()" class="flex-1 py-2 bg-blue-100 border border-blue-200 rounded text-blue-800 font-bold text-xs shadow-sm active:bg-blue-200"><i class="fas fa-bars mr-1"></i> MENU</button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modal Vitória -->
+    <div id="modal-victory" class="hidden fixed inset-0 z-[60] bg-black bg-opacity-80 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl border-4 border-yellow-400 animate-bounce">
+            <div class="inline-block p-4 rounded-full bg-yellow-100 mb-4 border-4 border-yellow-200"><i class="fas fa-trophy text-5xl text-yellow-600"></i></div>
+            <h2 class="text-3xl font-extrabold text-blue-900 mb-2">PARABÉNS!</h2>
+            <p class="text-lg text-gray-600 mb-6 font-medium">Tema <span id="victory-theme" class="text-blue-600 font-bold"></span> completo!</p>
+            <button onclick="goToSettings()" class="w-full bg-blue-800 text-white text-lg font-bold py-4 rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition border-b-4 border-blue-900">NOVO JOGO</button>
+        </div>
+    </div>
+
+    <script>
+        // --- BANCO DE DADOS (30 TEMAS) ---
+        const THEMES = {
+            "CASA": [{word:"SALA",clue:"Recebemos visitas aqui"},{word:"CAMA",clue:"Móvel para dormir"},{word:"MESA",clue:"Usada para refeições"},{word:"TETO",clue:"Cobre a casa"},{word:"PISO",clue:"Revestimento do chão"},{word:"SOFA",clue:"Assento estofado"},{word:"PIA",clue:"Lavar louça ou mãos"}],
+            "CORPO": [{word:"BOCA",clue:"Falar e comer"},{word:"PELE",clue:"Maior órgão do corpo"},{word:"UNHA",clue:"Ponta dos dedos"},{word:"DEDO",clue:"Temos 5 na mão"},{word:"NARIZ",clue:"Sentir cheiro"},{word:"OLHO",clue:"Órgão da visão"},{word:"PE",clue:"Usado para andar"}],
+            "ALIMENTOS": [{word:"PAO",clue:"Massa de farinha assada"},{word:"UVA",clue:"Fruta do vinho"},{word:"OVO",clue:"Vem da galinha"},{word:"SAL",clue:"Tempero salgado"},{word:"MEL",clue:"Feito por abelhas"},{word:"BOLO",clue:"Doce de festa"},{word:"ARROZ",clue:"Dupla do feijão"}],
+            "BRASIL": [{word:"SAMBA",clue:"Ritmo do carnaval"},{word:"REAL",clue:"Moeda nacional"},{word:"PRAIA",clue:"Mar e areia"},{word:"VERDE",clue:"Cor das matas"},{word:"CAFE",clue:"Bebida nacional"},{word:"SOL",clue:"País tropical"}],
+            "PAISES": [{word:"CHINA",clue:"País da muralha"},{word:"JAPAO",clue:"Sol nascente"},{word:"CHILE",clue:"Vizinho andino"},{word:"PERU",clue:"Machu Picchu fica lá"},{word:"INDIA",clue:"País do Taj Mahal"},{word:"USA",clue:"Sigla Estados Unidos"}],
+            "ESTADOS": [{word:"BAHIA",clue:"Terra do axé"},{word:"PARA",clue:"Terra do açaí"},{word:"GOIAS",clue:"Centro do Brasil"},{word:"CEARA",clue:"Terra do humor"},{word:"ACRE",clue:"Região Norte"},{word:"RIO",clue:"Cristo Redentor"},{word:"MINAS",clue:"Pão de queijo"}],
+            "ANIMAIS": [{word:"ZEBRA",clue:"Listrada preto e branco"},{word:"URSO",clue:"Gosta de mel"},{word:"TIGRE",clue:"Felino listrado"},{word:"GATO",clue:"Mia no telhado"},{word:"LOBO",clue:"Parece cão selvagem"},{word:"FOCA",clue:"Bate palmas"},{word:"PATO",clue:"Nada na lagoa"}],
+            "FRUTAS": [{word:"MACA",clue:"Branca de Neve comeu"},{word:"PERA",clue:"Formato de gota"},{word:"UVA",clue:"Cachos roxos"},{word:"LIMAO",clue:"Azedo e verde"},{word:"MANGA",clue:"Amarela com caroço"},{word:"COCO",clue:"Tem água dentro"},{word:"FIGO",clue:"Fruta doce em compota"}],
+            "ESCOLA": [{word:"LIVRO",clue:"Para ler"},{word:"LAPIS",clue:"Para escrever"},{word:"GIZ",clue:"Para o quadro negro"},{word:"AULA",clue:"Hora de aprender"},{word:"PROVA",clue:"Teste escolar"},{word:"ALUNO",clue:"Estudante"},{word:"SALA",clue:"Local da turma"}],
+            "CORES": [{word:"AZUL",clue:"Cor do céu"},{word:"ROSA",clue:"Cor de flor"},{word:"VERDE",clue:"Cor da grama"},{word:"PRETO",clue:"Cor escura"},{word:"ROXO",clue:"Azul com vermelho"},{word:"CINZA",clue:"Dia nublado"},{word:"BEGE",clue:"Tom de areia"}],
+            "ROUPAS": [{word:"MEIA",clue:"No pé"},{word:"SAIA",clue:"Feminina"},{word:"BONE",clue:"Na cabeça"},{word:"LUVA",clue:"Na mão"},{word:"CINTO",clue:"Na cintura"},{word:"GOLA",clue:"No pescoço"}],
+            "BEBIDAS": [{word:"AGUA",clue:"H2O"},{word:"SUCO",clue:"De frutas"},{word:"CHA",clue:"Infusão quente"},{word:"VINHO",clue:"De uva"},{word:"LEITE",clue:"Da vaca"}],
+            "FAMILIA": [{word:"MAE",clue:"Geradora"},{word:"PAI",clue:"Genitor"},{word:"AVO",clue:"Pai do pai"},{word:"TIO",clue:"Irmão do pai"},{word:"NETO",clue:"Filho do filho"},{word:"IRMA",clue:"Mesmos pais"}],
+            "TEMPO": [{word:"VERAO",clue:"Estação quente"},{word:"FRIO",clue:"Inverno"},{word:"CHUVA",clue:"Água do céu"},{word:"NOITE",clue:"Escuro"},{word:"DIA",clue:"Claro"},{word:"HORA",clue:"60 minutos"},{word:"ANO",clue:"365 dias"}],
+            "OBJETOS": [{word:"CHAVE",clue:"Abre porta"},{word:"MALA",clue:"Viagem"},{word:"VELA",clue:"Ilumina"},{word:"PENTE",clue:"Cabelo"},{word:"REDE",clue:"Descanso"},{word:"ANEL",clue:"Dedo"}],
+            "PROFISSOES": [{word:"MEDICO",clue:"Cuida da saúde"},{word:"ATOR",clue:"Trabalha em novelas"},{word:"JUIZ",clue:"Trabalha no tribunal"},{word:"PADEIRO",clue:"Faz pão"},{word:"PINTOR",clue:"Pinta casas"},{word:"CANTOR",clue:"Usa a voz"}],
+            "ESPORTES": [{word:"VOLEI",clue:"Jogado com as mãos"},{word:"TENIS",clue:"Usa raquete"},{word:"GOLF",clue:"Acertar bola no buraco"},{word:"BOXE",clue:"Luta com luvas"},{word:"JUDO",clue:"Arte marcial japonesa"},{word:"SURF",clue:"Prancha na onda"}],
+            "NATUREZA": [{word:"RIO",clue:"Corre para o mar"},{word:"LAGO",clue:"Água parada"},{word:"SERRA",clue:"Muitas montanhas"},{word:"FLOR",clue:"Parte colorida"},{word:"RAIZ",clue:"Fixa no solo"},{word:"MAR",clue:"Água salgada"}],
+            "SENTIMENTOS": [{word:"AMOR",clue:"Grande afeto"},{word:"MEDO",clue:"Susto, pavor"},{word:"RAIVA",clue:"Irritação forte"},{word:"DOR",clue:"Sensação ruim"},{word:"PENA",clue:"Dó, compaixão"},{word:"PAZ",clue:"Tranquilidade"}],
+            "COZINHA": [{word:"FACA",clue:"Corta alimentos"},{word:"COPO",clue:"Beber água"},{word:"GARFO",clue:"Para espetar comida"},{word:"FOGAO",clue:"Cozinha a comida"},{word:"FORNO",clue:"Assa bolo"},{word:"BULE",clue:"Serve café"}],
+            "TRANSPORTE": [{word:"CARRO",clue:"Tem 4 rodas"},{word:"TREM",clue:"Anda no trilho"},{word:"NAVIO",clue:"Anda no mar"},{word:"MOTO",clue:"Tem 2 rodas"},{word:"TAXI",clue:"Carro de aluguel"},{word:"JIPE",clue:"Carro forte"}],
+            "INSTRUMENTOS": [{word:"PIANO",clue:"Teclas pretas e brancas"},{word:"HARPA",clue:"Cordas celestial"},{word:"BOMBO",clue:"Tambor grave"},{word:"GAITA",clue:"Sopro pequeno"},{word:"TUBA",clue:"Sopro grande"},{word:"SINO",clue:"Toca na igreja"}],
+            "UNIVERSO": [{word:"LUA",clue:"Satélite da Terra"},{word:"SOL",clue:"Nossa estrela"},{word:"CEU",clue:"Onde ficam as nuvens"},{word:"MARTE",clue:"Planeta vermelho"},{word:"TERRA",clue:"Onde vivemos"},{word:"LUZ",clue:"Viaja rápido"}],
+            "HIGIENE": [{word:"SABAO",clue:"Lava e limpa"},{word:"BANHO",clue:"Limpeza do corpo"},{word:"DENTE",clue:"Escovar após comer"},{word:"UNHA",clue:"Cortar e limpar"},{word:"AGUA",clue:"Enxaguar"},{word:"PAPEL",clue:"Secar ou limpar"}],
+            "VALORES": [{word:"AMOR",clue:"Carinho"},{word:"FE",clue:"Acreditar"},{word:"PAZ",clue:"Sem guerra"},{word:"HONRA",clue:"Dignidade"},{word:"ETICA",clue:"Fazer o certo"},{word:"BEM",clue:"Oposto de mal"}],
+            "FESTAS": [{word:"NATAL",clue:"Nascimento de Jesus"},{word:"VALSA",clue:"Dança de 15 anos"},{word:"BOLO",clue:"Tem no aniversário"},{word:"VELA",clue:"Sopra no parabéns"},{word:"NOIVA",clue:"Casa no altar"}],
+            "TECNOLOGIA": [{word:"RADIO",clue:"Ouvimos música"},{word:"TV",clue:"Assistimos novela"},{word:"MOUSE",clue:"Rato do PC"},{word:"FONE",clue:"No ouvido"},{word:"CHIP",clue:"No celular"},{word:"WIFI",clue:"Internet sem fio"}],
+            "FLORES": [{word:"ROSA",clue:"Tem espinhos"},{word:"LIRIO",clue:"Símbolo de pureza"},{word:"CRAVO",clue:"Brigou com a rosa"},{word:"LOTUS",clue:"Flor sagrada"},{word:"JASMIM",clue:"Muito perfumada"}],
+            "SIGNOS": [{word:"LEAO",clue:"Rei da selva"},{word:"VIRGEM",clue:"Organizado"},{word:"LIBRA",clue:"Balança"},{word:"PEIXES",clue:"Água"},{word:"TOURO",clue:"Terra"},{word:"ARIES",clue:"Fogo"}],
+            "MESES": [{word:"ABRIL",clue:"Descobrimento"},{word:"MAIO",clue:"Mês das mães"},{word:"JULHO",clue:"Férias"},{word:"MARCO",clue:"Fim do verão"},{word:"JUNHO",clue:"Festas juninas"}]
+        };
+
+        // --- ESTADO ---
+        const state = {
+            username: localStorage.getItem('schola_user') || '',
+            coins: parseInt(localStorage.getItem('schola_coins')) || 0,
+            difficulty: 'easy',
+            theme: '',
+            gridSize: 8,
+            grid: [], 
+            wordsOnBoard: [], 
+            selectedCell: null,
+            selectedWordIndex: -1,
+            inputElem: document.getElementById('hidden-input')
+        };
+
+        // --- INICIALIZAÇÃO ---
+        window.onload = () => {
+            setupInputListener();
+            populateThemes();
+            if(state.username) {
+                document.getElementById('username-input').value = state.username;
+                document.getElementById('screen-login').classList.add('hidden');
+                document.getElementById('screen-settings').classList.remove('hidden');
+                updateUI();
+            }
+        };
+
+        function populateThemes() {
+            const sel = document.getElementById('theme-select');
+            sel.innerHTML = '';
+            Object.keys(THEMES).sort().forEach(k => {
+                const opt = document.createElement('option');
+                opt.value = k;
+                opt.innerText = k;
+                sel.appendChild(opt);
+            });
+        }
+
+        function updateUI() {
+            document.getElementById('display-name').innerText = state.username;
+            document.getElementById('game-player-display').innerText = state.username;
+            document.getElementById('coin-balance').innerText = state.coins;
+            ['easy', 'medium', 'hard'].forEach(l => {
+                const btn = document.getElementById(`btn-${l}`);
+                btn.classList.remove('ring-4', 'ring-blue-300');
+                if(l === state.difficulty) btn.classList.add('ring-4', 'ring-blue-300');
+            });
+        }
+
+        function selectDifficulty(lvl) {
+            state.difficulty = lvl;
+            updateUI();
+        }
+
+        function goToSettings() {
+            const name = document.getElementById('username-input').value.trim();
+            if(name) {
+                state.username = name;
+                localStorage.setItem('schola_user', name);
+            } else if (!state.username) {
+                alert("Digite seu nome!");
+                return;
+            }
+            document.getElementById('screen-login').classList.add('hidden');
+            document.getElementById('screen-game').classList.add('hidden');
+            document.getElementById('modal-victory').classList.add('hidden');
+            document.getElementById('screen-settings').classList.remove('hidden');
+            updateUI();
+        }
+
+        // --- GERADOR ROBUSTO ---
+        function startGame() {
+            const theme = document.getElementById('theme-select').value;
+            state.theme = theme;
+            
+            if(state.difficulty === 'easy') state.gridSize = 9; 
+            else if(state.difficulty === 'medium') state.gridSize = 11;
+            else state.gridSize = 13;
+
+            if(generateCrossword(theme)) {
+                renderGrid();
+                renderClueList();
+                updateWordCounts();
+                document.getElementById('screen-settings').classList.add('hidden');
+                document.getElementById('screen-game').classList.remove('hidden');
+                document.getElementById('game-theme-display').innerText = theme;
+                state.selectedCell = null;
+                state.selectedWordIndex = -1;
+                document.getElementById('footer-current-clue').innerText = "Toque em um quadrado ou na lista.";
+            } else {
+                alert("Não foi possível gerar com este tema. Tente outro!");
+            }
+        }
+
+        function generateCrossword(themeKey) {
+            let bestBoard = null;
+            let maxWords = 0;
+
+            for(let attempt = 0; attempt < 100; attempt++) {
+                const size = state.gridSize;
+                let grid = Array(size).fill(null).map(() => Array(size).fill(null));
+                let placedWords = [];
+                let wordsToTry = JSON.parse(JSON.stringify(THEMES[themeKey]));
+                
+                wordsToTry.sort(() => Math.random() - 0.5);
+                const longest = wordsToTry.reduce((a,b) => a.word.length > b.word.length ? a : b);
+                wordsToTry = wordsToTry.filter(w => w !== longest);
+                wordsToTry.unshift(longest);
+
+                const first = wordsToTry[0];
+                const dir = Math.random() > 0.5 ? 'H' : 'V';
+                const sx = Math.floor((size - (dir === 'H' ? first.word.length : 1))/2);
+                const sy = Math.floor((size - (dir === 'V' ? first.word.length : 1))/2);
+                
+                if(placeWordIfFits(grid, first, sx, sy, dir, size)) {
+                    placedWords.push({...first, x: sx, y: sy, dir: dir, solved: false});
+                }
+
+                for(let i=1; i<wordsToTry.length; i++) {
+                    const w = wordsToTry[i];
+                    const fit = findBestPosition(grid, w.word, placedWords, size);
+                    if(fit) {
+                        if(placeWordIfFits(grid, w, fit.x, fit.y, fit.dir, size)) {
+                            placedWords.push({...w, x: fit.x, y: fit.y, dir: fit.dir, solved: false});
+                        }
+                    }
+                }
+
+                if(placedWords.length > maxWords) {
+                    maxWords = placedWords.length;
+                    bestBoard = { grid: cloneGrid(grid), placedWords: JSON.parse(JSON.stringify(placedWords)) };
+                }
+            }
+
+            if(maxWords < 2) return false;
+
+            const finalWords = bestBoard.placedWords;
+            const startCells = [];
+            finalWords.forEach(w => {
+                if(!startCells.some(c => c.x === w.x && c.y === w.y)) {
+                    startCells.push({x: w.x, y: w.y});
+                }
+            });
+            
+            startCells.sort((a,b) => (a.y - b.y) || (a.x - b.x));
+            
+            startCells.forEach((c, index) => {
+                const num = index + 1;
+                finalWords.filter(w => w.x === c.x && w.y === c.y).forEach(w => w.number = num);
+            });
+
+            state.wordsOnBoard = finalWords;
+            state.grid = Array(state.gridSize).fill(null).map(() => Array(state.gridSize).fill(null));
+            
+            for(let y=0; y<state.gridSize; y++)
+                for(let x=0; x<state.gridSize; x++) 
+                    state.grid[y][x] = { type: 'block' };
+
+            state.wordsOnBoard.forEach((w, idx) => {
+                for(let i=0; i<w.word.length; i++) {
+                    let cx = w.dir === 'H' ? w.x + i : w.x;
+                    let cy = w.dir === 'H' ? w.y : w.y + i;
+                    
+                    if(state.grid[cy][cx].type !== 'letter') {
+                        state.grid[cy][cx] = {
+                            type: 'letter',
+                            char: w.word[i],
+                            userChar: '',
+                            refs: [], 
+                            displayNumber: null
+                        };
+                    }
+                    state.grid[cy][cx].refs.push(idx);
+                    if(i === 0) state.grid[cy][cx].displayNumber = w.number;
+                }
+            });
+
+            return true;
+        }
+
+        function cloneGrid(grid) { return grid.map(row => [...row]); }
+
+        function findBestPosition(grid, wordStr, placed, size) {
+            const shuffledPlaced = [...placed].sort(() => Math.random() - 0.5);
+            for(let p of shuffledPlaced) {
+                const intersections = getIntersections(wordStr, p.word);
+                for (let inter of intersections) {
+                    const newDir = p.dir === 'H' ? 'V' : 'H';
+                    let nx, ny;
+                    if(newDir === 'V') {
+                        nx = p.x + inter.idxB;
+                        ny = p.y - inter.idxA;
+                    } else {
+                        nx = p.x - inter.idxA;
+                        ny = p.y + inter.idxB;
+                    }
+                    if(canPlaceStrict(grid, wordStr, nx, ny, newDir, size)) {
+                        return {x: nx, y: ny, dir: newDir};
+                    }
+                }
+            }
+            return null;
+        }
+
+        function getIntersections(wordA, wordB) {
+            let res = [];
+            for(let i=0; i<wordA.length; i++) {
+                for(let j=0; j<wordB.length; j++) {
+                    if(wordA[i] === wordB[j]) res.push({idxA: i, idxB: j});
+                }
+            }
+            return res;
+        }
+
+        function canPlaceStrict(grid, word, x, y, dir, size) {
+            if(x < 0 || y < 0) return false;
+            if(dir === 'H' && x + word.length > size) return false;
+            if(dir === 'V' && y + word.length > size) return false;
+
+            const beforeX = dir === 'H' ? x - 1 : x;
+            const beforeY = dir === 'H' ? y : y - 1;
+            const afterX = dir === 'H' ? x + word.length : x;
+            const afterY = dir === 'H' ? y : y + word.length;
+
+            if(beforeX >= 0 && beforeY >= 0 && grid[beforeY][beforeX] !== null) return false;
+            if(afterX < size && afterY < size && grid[afterY][afterX] !== null) return false;
+
+            for(let i=0; i<word.length; i++) {
+                let cx = dir === 'H' ? x + i : x;
+                let cy = dir === 'H' ? y : y + i;
+                const cell = grid[cy][cx];
+                
+                if(cell !== null && cell !== word[i]) return false;
+                
+                if(cell === null) {
+                    if(dir === 'H') {
+                        if((y > 0 && grid[y-1][cx] !== null) || (y < size-1 && grid[y+1][cx] !== null)) return false;
+                    } else {
+                        if((x > 0 && grid[cy][x-1] !== null) || (x < size-1 && grid[cy][x+1] !== null)) return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        function placeWordIfFits(grid, wObj, x, y, dir, size) {
+            if(!canPlaceStrict(grid, wObj.word, x, y, dir, size)) return false;
+            for(let i=0; i<wObj.word.length; i++) {
+                let cx = dir === 'H' ? x + i : x;
+                let cy = dir === 'H' ? y : y + i;
+                grid[cy][cx] = wObj.word[i];
+            }
+            return true;
+        }
+
+        // --- RENDERIZAÇÃO ---
+        function renderGrid() {
+            const wrapper = document.getElementById('grid-wrapper');
+            wrapper.innerHTML = '';
+            
+            const gridEl = document.createElement('div');
+            gridEl.className = 'crossword-grid';
+            gridEl.style.gridTemplateColumns = `repeat(${state.gridSize}, 1fr)`;
+
+            for(let y=0; y<state.gridSize; y++) {
+                for(let x=0; x<state.gridSize; x++) {
+                    const data = state.grid[y][x];
+                    const cell = document.createElement('div');
+                    
+                    if(data.type === 'block') {
+                        cell.className = 'cell block';
+                    } else {
+                        cell.className = 'cell active';
+                        cell.dataset.x = x;
+                        cell.dataset.y = y;
+                        cell.onclick = (e) => handleCellClick(x, y, e);
+
+                        if(data.displayNumber) {
+                            const num = document.createElement('span');
+                            num.className = 'cell-number';
+                            num.innerText = data.displayNumber;
+                            cell.appendChild(num);
+                        }
+                        const letSpan = document.createElement('span');
+                        letSpan.className = 'cell-letter';
+                        letSpan.id = `cell-char-${x}-${y}`;
+                        letSpan.innerText = data.userChar;
+                        cell.appendChild(letSpan);
+
+                        if(data.correct) cell.classList.add('correct');
+                    }
+                    gridEl.appendChild(cell);
+                }
+            }
+            wrapper.appendChild(gridEl);
+        }
+
+        function renderClueList() {
+            const hList = document.getElementById('clues-horizontal-list');
+            const vList = document.getElementById('clues-vertical-list');
+            hList.innerHTML = '';
+            vList.innerHTML = '';
+
+            const hWords = state.wordsOnBoard.filter(w => w.dir === 'H').sort((a,b) => a.number - b.number);
+            const vWords = state.wordsOnBoard.filter(w => w.dir === 'V').sort((a,b) => a.number - b.number);
+
+            const createItem = (w, indexInGlobalArray) => {
+                const div = document.createElement('div');
+                div.className = 'clue-item';
+                div.id = `clue-item-${state.wordsOnBoard.indexOf(w)}`;
+                div.innerHTML = `<span class="clue-number-badge">${w.number}</span> <span class="text-blue-900">${w.clue}</span>`;
+                div.onclick = () => selectWordByIndex(state.wordsOnBoard.indexOf(w));
+                return div;
+            };
+
+            hWords.forEach(w => hList.appendChild(createItem(w)));
+            vWords.forEach(w => vList.appendChild(createItem(w)));
+        }
+
+        // --- INTERAÇÃO ---
+        function focusInput() {
+            if(state.selectedCell) state.inputElem.focus();
+        }
+
+        function selectWordByIndex(idx) {
+            state.selectedWordIndex = idx;
+            const w = state.wordsOnBoard[idx];
+            state.selectedCell = {x: w.x, y: w.y};
+            refreshStyles();
+            state.inputElem.focus();
+        }
+
+        function handleCellClick(x, y, e) {
+            e.stopPropagation();
+            const cellData = state.grid[y][x];
+            
+            if(state.selectedCell && state.selectedCell.x === x && state.selectedCell.y === y) {
+                if(cellData.refs.length > 1) {
+                    const currRefIdx = cellData.refs.indexOf(state.selectedWordIndex);
+                    const nextRefIdx = (currRefIdx + 1) % cellData.refs.length;
+                    state.selectedWordIndex = cellData.refs[nextRefIdx];
+                }
+            } else {
+                state.selectedCell = {x, y};
+                if(!cellData.refs.includes(state.selectedWordIndex)) {
+                    state.selectedWordIndex = cellData.refs[0];
+                }
+            }
+            refreshStyles();
+            state.inputElem.focus();
+        }
+
+        function refreshStyles() {
+            document.querySelectorAll('.cell.active').forEach(c => c.classList.remove('selected', 'highlighted-word'));
+            document.querySelectorAll('.clue-item').forEach(c => c.classList.remove('active-clue'));
+
+            if(state.selectedWordIndex !== -1) {
+                const w = state.wordsOnBoard[state.selectedWordIndex];
+                
+                for(let i=0; i<w.word.length; i++) {
+                    let cx = w.dir === 'H' ? w.x + i : w.x;
+                    let cy = w.dir === 'H' ? w.y : w.y + i;
+                    document.querySelector(`.cell[data-x='${cx}'][data-y='${cy}']`).classList.add('highlighted-word');
+                }
+
+                const listItem = document.getElementById(`clue-item-${state.selectedWordIndex}`);
+                if(listItem) {
+                    listItem.classList.add('active-clue');
+                    listItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+
+                document.getElementById('footer-current-clue').innerText = `${w.number} (${w.dir === 'H' ? 'Horiz.' : 'Vert.'}): ${w.clue}`;
+            }
+
+            if(state.selectedCell) {
+                document.querySelector(`.cell[data-x='${state.selectedCell.x}'][data-y='${state.selectedCell.y}']`).classList.add('selected');
+            }
+        }
+
+        // --- INPUT ---
+        function setupInputListener() {
+            const input = state.inputElem;
+            input.addEventListener('input', (e) => {
+                if(!state.selectedCell) return;
+                const char = e.target.value.toUpperCase().slice(-1);
+                input.value = '';
+                if(/[A-Z]/.test(char)) insertLetter(char);
+            });
+            input.addEventListener('keydown', (e) => {
+                if(e.key === 'Backspace') handleBackspace();
+            });
+        }
+
+        function insertLetter(char) {
+            const {x, y} = state.selectedCell;
+            const data = state.grid[y][x];
+            if(data.correct) {
+                moveCursor(1);
+                return;
+            }
+            data.userChar = char;
+            document.getElementById(`cell-char-${x}-${y}`).innerText = char;
+            checkWordCompletion(state.selectedWordIndex);
+            moveCursor(1);
+        }
+
+        function handleBackspace() {
+            if(!state.selectedCell) return;
+            const {x, y} = state.selectedCell;
+            const data = state.grid[y][x];
+            if(!data.correct) {
+                if(data.userChar === '') {
+                    moveCursor(-1);
+                    const prev = state.selectedCell;
+                    const prevData = state.grid[prev.y][prev.x];
+                    if(!prevData.correct) {
+                        prevData.userChar = '';
+                        document.getElementById(`cell-char-${prev.x}-${prev.y}`).innerText = '';
+                    }
+                } else {
+                    data.userChar = '';
+                    document.getElementById(`cell-char-${x}-${y}`).innerText = '';
+                }
+            } else {
+                moveCursor(-1);
+            }
+        }
+
+        function moveCursor(step) {
+            const w = state.wordsOnBoard[state.selectedWordIndex];
+            let idx = (w.dir === 'H') ? state.selectedCell.x - w.x : state.selectedCell.y - w.y;
+            let nextIdx = idx + step;
+            if(nextIdx >= 0 && nextIdx < w.word.length) {
+                let nx = w.dir === 'H' ? w.x + nextIdx : w.x;
+                let ny = w.dir === 'H' ? w.y : w.y + nextIdx;
+                state.selectedCell = {x: nx, y: ny};
+                refreshStyles();
+            }
+        }
+
+        function checkWordCompletion(wIdx) {
+            const w = state.wordsOnBoard[wIdx];
+            if(w.solved) return;
+            
+            let typed = "";
+            let filled = true;
+            for(let i=0; i<w.word.length; i++) {
+                let cx = w.dir === 'H' ? w.x + i : w.x;
+                let cy = w.dir === 'H' ? w.y : w.y + i;
+                const cell = state.grid[cy][cx];
+                if(!cell.userChar) filled = false;
+                typed += cell.userChar;
+            }
+
+            if(filled) {
+                if(typed === w.word) {
+                    // ACERTOU
+                    w.solved = true;
+                    state.coins++;
+                    updateUI();
+                    for(let i=0; i<w.word.length; i++) {
+                        let cx = w.dir === 'H' ? w.x + i : w.x;
+                        let cy = w.dir === 'H' ? w.y : w.y + i;
+                        state.grid[cy][cx].correct = true;
+                        document.querySelector(`.cell[data-x='${cx}'][data-y='${cy}']`).classList.add('correct');
+                    }
+                    document.getElementById(`clue-item-${wIdx}`).classList.add('solved-clue');
+                    
+                    showFeedback('success');
+                    updateWordCounts();
+                    if(state.wordsOnBoard.every(wd => wd.solved)) {
+                        setTimeout(() => {
+                            document.getElementById('victory-theme').innerText = state.theme;
+                            document.getElementById('modal-victory').classList.remove('hidden');
+                        }, 1000);
+                    }
+                } else {
+                    // ERROU - Limpa e avisa
+                    showFeedback('error');
+                    
+                    // Limpar letras da palavra (apenas as não corretas)
+                    setTimeout(() => {
+                        for(let i=0; i<w.word.length; i++) {
+                            let cx = w.dir === 'H' ? w.x + i : w.x;
+                            let cy = w.dir === 'H' ? w.y : w.y + i;
+                            const cellData = state.grid[cy][cx];
+                            
+                            if(!cellData.correct) {
+                                // Adiciona animação de erro visual
+                                const cellEl = document.querySelector(`.cell[data-x='${cx}'][data-y='${cy}']`);
+                                cellEl.classList.add('wrong');
+                                setTimeout(() => cellEl.classList.remove('wrong'), 500);
+
+                                // Limpa
+                                cellData.userChar = '';
+                                document.getElementById(`cell-char-${cx}-${cy}`).innerText = '';
+                            }
+                        }
+                        // Volta cursor para o inicio
+                        state.selectedCell = {x: w.x, y: w.y};
+                        refreshStyles();
+                    }, 400); // Pequeno delay para usuário ver que preencheu
+                }
+            }
+        }
+
+        function updateWordCounts() {
+            document.getElementById('words-found').innerText = state.wordsOnBoard.filter(w => w.solved).length;
+            document.getElementById('words-total').innerText = state.wordsOnBoard.length;
+        }
+
+        function showFeedback(type) {
+            const el = document.getElementById('feedback-message');
+            el.classList.remove('hidden');
+            
+            if(type === 'success') {
+                el.innerHTML = `
+                    <div class="bg-white border-4 border-green-500 p-6 rounded-2xl shadow-2xl flex flex-col items-center justify-center gap-2 animate-bounce">
+                        <i class="fas fa-check-circle text-green-500 text-5xl"></i>
+                        <h3 class="font-bold text-green-800 text-2xl">CORRETO!</h3>
+                    </div>`;
+            } else {
+                el.innerHTML = `
+                    <div class="bg-white border-4 border-red-500 p-6 rounded-2xl shadow-2xl flex flex-col items-center justify-center gap-2 animate-pulse">
+                        <i class="fas fa-times-circle text-red-500 text-5xl"></i>
+                        <h3 class="font-bold text-red-800 text-2xl">TENTE NOVAMENTE</h3>
+                    </div>`;
+            }
+
+            setTimeout(() => el.classList.add('hidden'), 1500);
+        }
+
+        function resetGame() {
+            if(confirm("Reiniciar o jogo?")) {
+                state.grid.flat().forEach(c => {
+                    if(c.type === 'letter') { c.userChar = ''; c.correct = false; }
+                });
+                state.wordsOnBoard.forEach(w => w.solved = false);
+                renderGrid();
+                renderClueList();
+                updateWordCounts();
+                state.selectedCell = null;
+                state.selectedWordIndex = -1;
+                refreshStyles();
+            }
+        }
+    </script>
+</body>
+</html>
