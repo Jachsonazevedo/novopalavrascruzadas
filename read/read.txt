@@ -9,15 +9,14 @@
     <!-- FontAwesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <style>
         :root {
             --schola-blue: #1e3a8a;
             --schola-gold: #fbbf24;
-            --schola-bg: #f0f4f8;
-            /* Células grandes para destaque */
-            --cell-size: clamp(34px, 9.5vw, 54px);
+            --schola-bg: #f8fafc;
+            --cell-size: clamp(34px, 5vw, 52px); /* Células ajustadas para balancear com a lista lateral */
         }
 
         body {
@@ -25,56 +24,72 @@
             background-color: var(--schola-bg);
             color: #334155;
             height: 100vh;
-            overscroll-behavior: none;
-            overflow: hidden; 
+            /* Permite rolagem da página inteira se necessário, mas tenta evitar */
+            overflow-y: auto; 
+            overflow-x: hidden;
             display: flex;
             flex-direction: column;
             user-select: none;
         }
 
-        /* --- UTILITÁRIOS --- */
         .btn-action { transition: transform 0.1s; }
         .btn-action:active { transform: translateY(2px); }
 
-        /* --- LAYOUT GERAL --- */
+        /* --- LAYOUT PRINCIPAL --- */
         .game-content {
             flex: 1;
             display: flex;
-            flex-direction: column;
+            flex-direction: column; /* Mobile: Coluna (Grade em cima, Lista embaixo) */
             align-items: center;
-            overflow-y: auto;
-            overflow-x: hidden;
-            padding-bottom: 90px;
             width: 100%;
+            padding: 20px 10px 100px 10px; /* Padding bottom para footer */
+            max-width: 1400px;
+            margin: 0 auto;
         }
 
-        /* --- GRADE ESTILO "PEÇAS EM DESTAQUE" --- */
+        @media (min-width: 1024px) {
+            .game-content {
+                flex-direction: row; /* Desktop: Lado a Lado */
+                align-items: flex-start; /* Alinha no topo */
+                justify-content: center;
+                gap: 40px;
+                padding: 40px;
+                height: calc(100vh - 80px); /* Tenta caber na tela sem scroll da página */
+                overflow: hidden; /* No desktop, tentamos conter tudo */
+            }
+        }
+
+        /* --- SEÇÃO DA GRADE (ESQUERDA NO DESKTOP) --- */
         .grid-section {
-            margin-top: 15px;
-            margin-bottom: 25px;
-            padding: 5px;
             display: flex;
             justify-content: center;
-            width: 100%;
             flex-shrink: 0;
+            margin-bottom: 20px;
+            flex: 2; /* Ocupa mais espaço que a lista */
+        }
+
+        @media (min-width: 1024px) {
+            .grid-section {
+                margin-bottom: 0;
+                justify-content: flex-end; /* Encosta na lista */
+            }
         }
 
         .crossword-wrapper {
-            /* Fundo sutil para delimitar a área, mas suave */
             background-color: #eef2ff; 
             padding: 15px;
-            border-radius: 16px;
-            /* Borda suave, sem ser pesada */
-            border: 2px solid #dae1f5;
-            box-shadow: inset 0 2px 6px rgba(0,0,0,0.05);
-            max-width: 98vw;
+            border-radius: 12px;
+            border: 4px solid #1e3a8a;
+            /* Sombra suave para destacar do fundo */
+            box-shadow: 0 10px 30px -5px rgba(30, 58, 138, 0.2);
+            max-width: 100%;
             overflow: auto; 
             display: inline-block;
         }
 
         .crossword-grid {
             display: grid;
-            gap: 4px; /* Espaço maior entre as peças */
+            gap: 3px; 
             background-color: transparent;
             border: none;
             margin: 0 auto;
@@ -90,201 +105,149 @@
             text-transform: uppercase;
         }
 
-        /* QUADRADO VAZIO (O "Bem Pequeno") */
-        /* Usamos um pseudo-elemento para criar um ponto visualmente pequeno no centro,
-           enquanto a célula mantém o tamanho real para a grade não quebrar */
-        .cell.block {
-            background-color: transparent;
-            cursor: default;
-            pointer-events: none;
-        }
+        /* Quadrado Vazio */
+        .cell.block { background-color: transparent; cursor: default; pointer-events: none; }
         .cell.block::after {
-            content: '';
-            width: 6px;
-            height: 6px;
-            background-color: #cbd5e1; /* Cinza claro */
-            border-radius: 50%;
-            display: block;
-            opacity: 0.5;
+            content: ''; width: 4px; height: 4px; background-color: #cbd5e1; border-radius: 50%; display: block; opacity: 0.4;
         }
 
-        /* QUADRADO DE LETRA (O "Grande em Destaque") */
+        /* Quadrado Letra */
         .cell.active {
             background-color: #fff;
             border: 2px solid #94a3b8;
-            border-radius: 8px; 
+            border-radius: 6px; 
             cursor: pointer;
-            /* Sombra profunda para destacar/elevar a peça */
-            box-shadow: 0 4px 0 #94a3b8, 0 5px 5px rgba(0,0,0,0.1); 
-            transition: transform 0.1s, background-color 0.2s, box-shadow 0.1s;
+            box-shadow: 0 3px 0 #94a3b8; 
+            transition: transform 0.1s, background-color 0.2s;
             z-index: 1;
         }
-
-        .cell.active:active {
-            transform: translateY(3px);
-            box-shadow: 0 1px 0 #94a3b8;
-        }
+        .cell.active:active { transform: translateY(2px); box-shadow: 0 1px 0 #94a3b8; }
 
         .cell-number {
-            position: absolute;
-            top: 2px;
-            left: 4px;
-            font-size: calc(var(--cell-size) * 0.22);
-            line-height: 1;
-            color: #64748b;
-            font-weight: 700;
-            pointer-events: none;
+            position: absolute; top: 1px; left: 3px; font-size: calc(var(--cell-size) * 0.25); line-height: 1; color: #64748b; font-weight: 700; pointer-events: none;
         }
-
         .cell-letter {
-            font-size: calc(var(--cell-size) * 0.65);
-            font-weight: 800;
-            color: #1e3a8a;
-            line-height: 1;
-            margin-top: 4px;
+            font-size: calc(var(--cell-size) * 0.65); font-weight: 800; color: #1e3a8a; line-height: 1; margin-top: 4px;
         }
 
-        /* --- ESTADOS DA CÉLULA --- */
-        
-        /* Palavra Selecionada */
-        .cell.highlighted-word {
-            background-color: #eff6ff; /* Azul muito leve */
-            border-color: #60a5fa;     /* Azul claro borda */
-            box-shadow: 0 4px 0 #60a5fa;
-        }
+        .cell.highlighted-word { background-color: #eff6ff; border-color: #60a5fa; box-shadow: 0 3px 0 #60a5fa; }
+        .cell.selected { background-color: #fffbeb !important; border-color: #fbbf24 !important; box-shadow: 0 3px 0 #d97706 !important; transform: translateY(-2px); z-index: 10; }
+        .cell.correct { background-color: #f0fdf4 !important; border-color: #22c55e !important; box-shadow: 0 3px 0 #15803d !important; color: #15803d; }
+        .cell.wrong { background-color: #fef2f2 !important; border-color: #ef4444 !important; box-shadow: 0 3px 0 #b91c1c !important; animation: shake 0.4s; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 
-        /* Célula Atual (Foco) */
-        .cell.selected { 
-            background-color: #fffbeb !important; 
-            border-color: #fbbf24 !important; 
-            box-shadow: 0 4px 0 #d97706 !important; 
-            transform: translateY(-2px);
-            z-index: 10;
-        }
-
-        /* Correto */
-        .cell.correct {
-            background-color: #f0fdf4 !important;
-            border-color: #22c55e !important;
-            box-shadow: 0 4px 0 #15803d !important;
-            color: #15803d;
-        }
-
-        /* Erro */
-        .cell.wrong {
-            background-color: #fef2f2 !important;
-            border-color: #ef4444 !important;
-            box-shadow: 0 4px 0 #b91c1c !important;
-            animation: shake 0.4s;
-        }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-4px); }
-            75% { transform: translateX(4px); }
-        }
-
-        /* --- LISTA DE PERGUNTAS --- */
-        .clues-container {
-            width: 95%;
-            max-width: 800px;
+        /* --- LISTA DE PERGUNTAS (DIREITA E ESTÁTICA) --- */
+        .clues-section {
+            width: 100%;
+            max-width: 500px;
+            
+            /* Visual Limpo sem Scrollbar Interna */
             background: white;
+            padding: 25px;
             border-radius: 12px;
             border: 1px solid #e2e8f0;
-            display: flex;
-            flex-direction: row;
-            flex-wrap: wrap;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            
+            /* Importante: Altura automática para mostrar tudo */
+            height: auto; 
+            flex-shrink: 0;
+        }
+
+        @media (min-width: 1024px) {
+            .clues-section {
+                width: 320px; /* Largura fixa na lateral */
+                max-width: 320px;
+                /* No desktop, se a lista for muito longa, permitimos scroll APENAS se ultrapassar a tela, mas a ideia é caber */
+                max-height: 90%; 
+                overflow-y: auto; 
+            }
+        }
+
+        .clue-group {
             margin-bottom: 20px;
-            overflow: hidden;
         }
+        .clue-group:last-child { margin-bottom: 0; }
 
-        .clue-column {
-            flex: 1 1 300px; 
-            padding: 0;
-            border-right: 1px solid #f1f5f9;
-            max-height: 30vh;
-            overflow-y: auto;
-        }
-        .clue-column:last-child { border-right: none; }
-
-        .clue-list-title {
-            font-size: 0.85rem;
-            font-weight: 800;
-            color: #475569;
-            background: #f8fafc;
-            padding: 10px 12px;
+        .clue-group-title {
+            font-size: 0.95rem;
             text-transform: uppercase;
-            border-bottom: 1px solid #e2e8f0;
-            position: sticky;
-            top: 0;
-            z-index: 2;
+            color: #1e3a8a;
+            font-weight: 800;
+            margin-bottom: 12px;
+            border-bottom: 2px solid #fbbf24;
+            display: inline-block;
+            padding-bottom: 4px;
             letter-spacing: 0.05em;
         }
 
-        .clue-item {
-            font-size: 0.95rem; 
-            padding: 12px 14px;
-            border-bottom: 1px solid #f1f5f9;
-            cursor: pointer;
-            line-height: 1.3;
+        .clues-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
             display: flex;
-            align-items: center;
-            color: #334155;
-            transition: background 0.2s;
-        }
-        .clue-item:hover { background-color: #f8fafc; }
-        
-        .clue-item.active-clue { 
-            background-color: #eff6ff; 
-            color: #1e3a8a;
-            font-weight: 600;
-            border-left: 4px solid #1e3a8a;
-        }
-        .clue-item.solved-clue {
-            background-color: #f0fdf4;
-            color: #166534;
-            text-decoration: none;
-        }
-        .clue-item.solved-clue .clue-number-badge {
-            background-color: #16a34a;
+            flex-direction: column;
+            gap: 10px; /* Espaço confortável entre itens */
         }
 
-        .clue-number-badge {
-            background: #94a3b8;
-            color: white;
-            font-size: 0.75rem;
-            font-weight: 700;
-            padding: 3px 7px;
+        .clue-item {
+            font-size: 0.95rem;
+            color: #475569;
+            cursor: pointer;
+            padding: 6px 10px;
             border-radius: 6px;
-            margin-right: 10px;
-            min-width: 26px;
-            text-align: center;
+            transition: all 0.2s;
+            line-height: 1.4;
+            display: flex;
+            align-items: flex-start;
+            border-left: 3px solid transparent; /* Indicador */
         }
-        .active-clue .clue-number-badge { background: #1e3a8a; }
+
+        .clue-item:hover { background-color: #f8fafc; border-left-color: #cbd5e1; }
+        
+        .clue-item.active-clue {
+            background-color: #eff6ff;
+            color: #1e3a8a;
+            font-weight: 600;
+            border-left-color: #1e3a8a;
+        }
+
+        .clue-item.solved-clue {
+            text-decoration: line-through;
+            color: #166534; /* Verde sucesso */
+            background-color: #f0fdf4;
+            border-left-color: #22c55e;
+            opacity: 0.7;
+        }
+
+        .clue-number {
+            font-weight: 800;
+            color: #1e3a8a;
+            margin-right: 10px;
+            min-width: 20px;
+        }
+        .solved-clue .clue-number { color: #166534; }
 
         /* --- RODAPÉ FIXO --- */
         .fixed-footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: white;
-            border-top: 1px solid #cbd5e1;
-            z-index: 50;
-            box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
-            padding-bottom: env(safe-area-inset-bottom);
+            position: fixed; bottom: 0; left: 0; width: 100%; background: white; border-top: 1px solid #cbd5e1; z-index: 50;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.08); padding-bottom: env(safe-area-inset-bottom);
         }
 
         #hidden-input { position: absolute; opacity: 0; top: -1000px; }
 
-        /* Mobile tweaks */
-        @media (max-width: 640px) {
-            .game-content { padding-bottom: 140px; }
-            .grid-section { margin-top: 0; padding: 2px; }
-            /* No mobile, reduzimos um pouco para caber */
-            .crossword-wrapper { padding: 10px; }
-            .clue-item { padding: 10px 12px; font-size: 0.9rem; }
+        /* Ajustes Mobile */
+        @media (max-width: 1023px) {
+            .clues-section {
+                order: 2; /* No mobile, fica abaixo da grade */
+                margin-top: 20px;
+            }
+            .grid-section {
+                order: 1;
+            }
+            .game-content {
+                padding-bottom: 120px; /* Mais espaço para footer */
+                overflow-y: auto; /* Permite scroll na página pois a lista é comprida */
+            }
         }
     </style>
 </head>
@@ -296,15 +259,15 @@
     <div id="screen-login" class="absolute inset-0 z-50 bg-white flex flex-col items-center justify-center p-4 text-center">
         <div class="mb-8">
             <div class="inline-block p-6 rounded-full bg-blue-50 mb-4 animate-bounce">
-                <i class="fas fa-brain text-6xl text-blue-800"></i>
+                <i class="fas fa-brain text-7xl text-blue-800"></i>
             </div>
             <h1 class="text-4xl font-extrabold text-blue-900 tracking-tight">Schola da Mente</h1>
-            <p class="text-xl text-yellow-600 font-bold mt-2 uppercase tracking-wide">Palavras Cruzadas</p>
+            <p class="text-xl text-yellow-600 font-bold mt-2 uppercase">Palavras Cruzadas</p>
         </div>
         <div class="w-full max-w-sm">
             <label class="block text-gray-500 font-bold mb-2 text-sm uppercase tracking-wider">Digite seu nome</label>
-            <input type="text" id="username-input" class="w-full p-4 text-2xl text-center border-2 border-gray-200 rounded-2xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 mb-6 uppercase text-blue-900 font-bold outline-none transition-all" placeholder="SEU NOME" maxlength="12">
-            <button onclick="goToSettings()" class="w-full bg-blue-800 hover:bg-blue-700 text-white text-xl font-bold py-4 rounded-2xl shadow-lg shadow-blue-900/20 btn-action transition-all">COMEÇAR</button>
+            <input type="text" id="username-input" class="w-full p-4 text-2xl text-center border-2 border-gray-200 rounded-2xl focus:border-blue-500 outline-none mb-6 uppercase text-blue-900 font-bold" placeholder="SEU NOME" maxlength="12">
+            <button onclick="goToSettings()" class="w-full bg-blue-800 hover:bg-blue-700 text-white text-xl font-bold py-4 rounded-2xl shadow-lg btn-action transition-all">COMEÇAR</button>
         </div>
     </div>
 
@@ -312,109 +275,98 @@
     <div id="screen-settings" class="hidden absolute inset-0 z-40 bg-slate-50 flex flex-col items-center justify-center p-4">
         <div class="w-full max-w-md text-center bg-white p-8 rounded-3xl shadow-xl border border-slate-100">
             <h2 class="text-3xl font-bold text-slate-800 mb-8">Olá, <span id="display-name" class="text-blue-600"></span>!</h2>
-            
             <div class="mb-8 text-left">
-                <p class="text-slate-400 font-bold mb-3 text-xs uppercase tracking-wider">Nível de Dificuldade</p>
+                <p class="text-slate-400 font-bold mb-3 text-xs uppercase tracking-wider">Nível</p>
                 <div class="flex gap-3">
-                    <button onclick="selectDifficulty('easy')" id="btn-easy" class="flex-1 py-4 border-2 border-green-400 text-green-600 font-bold rounded-xl hover:bg-green-50 text-sm transition-all">FÁCIL</button>
-                    <button onclick="selectDifficulty('medium')" id="btn-medium" class="flex-1 py-4 border-2 border-yellow-400 text-yellow-600 font-bold rounded-xl hover:bg-yellow-50 text-sm transition-all">MÉDIO</button>
-                    <button onclick="selectDifficulty('hard')" id="btn-hard" class="flex-1 py-4 border-2 border-red-400 text-red-600 font-bold rounded-xl hover:bg-red-50 text-sm transition-all">DIFÍCIL</button>
+                    <button onclick="selectDifficulty('easy')" id="btn-easy" class="flex-1 py-4 border-2 border-green-400 text-green-600 font-bold rounded-xl hover:bg-green-50 transition-all">FÁCIL</button>
+                    <button onclick="selectDifficulty('medium')" id="btn-medium" class="flex-1 py-4 border-2 border-yellow-400 text-yellow-600 font-bold rounded-xl hover:bg-yellow-50 transition-all">MÉDIO</button>
+                    <button onclick="selectDifficulty('hard')" id="btn-hard" class="flex-1 py-4 border-2 border-red-400 text-red-600 font-bold rounded-xl hover:bg-red-50 transition-all">DIFÍCIL</button>
                 </div>
             </div>
-
             <div class="mb-8 text-left">
-                <p class="text-slate-400 font-bold mb-3 text-xs uppercase tracking-wider">Tema do Jogo</p>
-                <select id="theme-select" class="w-full p-4 text-lg border-2 border-slate-200 rounded-xl text-slate-700 bg-white font-bold outline-none focus:border-blue-500 transition-all cursor-pointer appearance-none"></select>
+                <p class="text-slate-400 font-bold mb-3 text-xs uppercase tracking-wider">Tema</p>
+                <select id="theme-select" class="w-full p-4 text-lg border-2 border-slate-200 rounded-xl text-slate-700 bg-white font-bold outline-none focus:border-blue-500 cursor-pointer"></select>
             </div>
-
-            <button onclick="startGame()" class="w-full bg-yellow-500 text-white text-xl font-bold py-5 rounded-2xl shadow-lg shadow-yellow-500/30 btn-action hover:bg-yellow-400 transition-all">JOGAR AGORA</button>
+            <button onclick="startGame()" class="w-full bg-yellow-500 text-white text-xl font-bold py-5 rounded-2xl shadow-lg btn-action hover:bg-yellow-400">JOGAR AGORA</button>
         </div>
     </div>
 
     <!-- GAME -->
     <div id="screen-game" class="hidden flex flex-col h-full bg-slate-50 relative z-30">
         
-        <!-- Header Principal -->
+        <!-- Header -->
         <header class="bg-white text-slate-800 p-3 shadow-sm flex flex-col items-center justify-center shrink-0 z-20 border-b border-slate-200">
-            <!-- HEADLINE PERSONALIZADA -->
-            <h1 id="game-theme-display" class="text-lg md:text-xl font-extrabold text-blue-900 uppercase tracking-wider text-center"></h1>
-            
-            <div class="w-full flex justify-between items-center px-2 max-w-4xl mt-1">
+            <h1 id="game-theme-display" class="text-lg md:text-2xl font-extrabold text-blue-900 uppercase tracking-wider text-center"></h1>
+            <div class="w-full flex justify-between items-center px-4 max-w-6xl mt-1">
                 <div class="text-slate-500 font-semibold text-xs flex items-center">
                     <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center mr-2 text-blue-600"><i class="fas fa-user"></i></div>
                     <span id="game-player-display">Jogador</span>
                 </div>
-                <div class="flex gap-3">
-                    <div class="flex items-center bg-yellow-100 px-3 py-1 rounded-full border border-yellow-200">
-                        <i class="fas fa-coins text-yellow-600 mr-2 text-sm"></i>
-                        <span id="coin-balance" class="font-bold text-yellow-700 text-md">0</span>
-                    </div>
+                <div class="flex items-center bg-yellow-100 px-3 py-1 rounded-full border border-yellow-200">
+                    <i class="fas fa-coins text-yellow-600 mr-2 text-sm"></i>
+                    <span id="coin-balance" class="font-bold text-yellow-700 text-md">0</span>
                 </div>
             </div>
         </header>
 
-        <!-- Área de Conteúdo -->
+        <!-- Conteúdo Principal -->
         <div class="game-content" onclick="focusInput()">
             
-            <!-- Grade "Flutuante" com Peças em Destaque -->
+            <!-- Grade do Jogo (ESQUERDA NO DESKTOP) -->
             <div class="grid-section">
                 <div id="grid-wrapper" class="crossword-wrapper"></div>
             </div>
 
-            <!-- Lista de Perguntas -->
-            <div id="clues-container" class="clues-container">
-                <div class="clue-column">
-                    <h3 class="clue-list-title"><i class="fas fa-arrow-right mr-2 text-blue-400"></i> Horizontais</h3>
-                    <div id="clues-horizontal-list"></div>
+            <!-- LISTA DE PERGUNTAS (DIREITA NO DESKTOP) -->
+            <div class="clues-section">
+                <!-- Horizontais -->
+                <div class="clue-group">
+                    <div class="clue-group-title"><i class="fas fa-arrow-right mr-1"></i> Horizontais</div>
+                    <div id="clues-horizontal-list" class="clues-list"></div>
                 </div>
-                <div class="clue-column">
-                    <h3 class="clue-list-title"><i class="fas fa-arrow-down mr-2 text-blue-400"></i> Verticais</h3>
-                    <div id="clues-vertical-list"></div>
+                <!-- Verticais -->
+                <div class="clue-group">
+                    <div class="clue-group-title"><i class="fas fa-arrow-down mr-1"></i> Verticais</div>
+                    <div id="clues-vertical-list" class="clues-list"></div>
                 </div>
             </div>
+
         </div>
 
-        <!-- Feedback Toast -->
+        <!-- Feedback Visual -->
         <div id="feedback-message" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 hidden z-50 pointer-events-none w-10/12 max-w-sm"></div>
 
-        <!-- Rodapé Fixo -->
+        <!-- Footer Controles -->
         <footer class="fixed-footer">
-            <div class="bg-blue-50 border-b border-blue-100 p-3 text-center">
-                <p id="footer-current-clue" class="text-sm md:text-base text-blue-900 font-bold leading-tight line-clamp-1">
-                    Selecione uma palavra para jogar
-                </p>
+            <div class="bg-blue-50 border-b border-blue-100 p-2 text-center">
+                <p id="footer-current-clue" class="text-sm text-blue-900 font-bold leading-tight line-clamp-1">Toque numa palavra para jogar</p>
             </div>
-            
             <div class="p-3 flex gap-3 justify-center bg-white max-w-xl mx-auto items-center">
-                
-                <button onclick="resetGame()" class="flex-1 py-3 bg-slate-100 rounded-xl text-slate-600 font-bold text-xs shadow-sm active:bg-slate-200 transition">
-                    <i class="fas fa-redo text-lg block mb-1"></i> REINICIAR
-                </button>
-                
-                <!-- BOTÃO DE DICA -->
-                <button onclick="useHint()" class="flex-grow-[2] py-3 bg-yellow-400 rounded-xl text-white font-bold text-sm shadow-md shadow-yellow-200 active:bg-yellow-500 transition transform hover:-translate-y-0.5 btn-action border-b-4 border-yellow-500 active:border-b-0 active:mt-1">
-                    <i class="fas fa-lightbulb text-lg mb-1 inline-block mr-1"></i> DICA <span class="text-xs opacity-90 block font-normal">(2 moedas)</span>
-                </button>
-
-                <button onclick="goToSettings()" class="flex-1 py-3 bg-blue-50 rounded-xl text-blue-600 font-bold text-xs shadow-sm active:bg-blue-100 transition">
-                    <i class="fas fa-bars text-lg block mb-1"></i> MENU
-                </button>
+                <button onclick="resetGame()" class="flex-1 py-3 bg-slate-100 rounded-xl text-slate-600 font-bold text-xs shadow-sm active:bg-slate-200 transition"><i class="fas fa-redo text-lg block mb-1"></i> REINICIAR</button>
+                <button onclick="useHint()" class="flex-grow-[2] py-3 bg-yellow-400 rounded-xl text-white font-bold text-sm shadow-md active:bg-yellow-500 btn-action border-b-4 border-yellow-500 active:border-b-0 active:mt-1"><i class="fas fa-lightbulb text-lg mb-1 inline-block mr-1"></i> DICA <span class="text-xs font-normal opacity-90">(2)</span></button>
+                <button onclick="goToSettings()" class="flex-1 py-3 bg-blue-50 rounded-xl text-blue-600 font-bold text-xs shadow-sm active:bg-blue-100 transition"><i class="fas fa-bars text-lg block mb-1"></i> MENU</button>
             </div>
         </footer>
     </div>
 
-    <!-- Modal Vitória -->
+    <!-- Vitória -->
     <div id="modal-victory" class="hidden fixed inset-0 z-[60] bg-black bg-opacity-80 flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border-4 border-yellow-400 animate-bounce">
             <div class="inline-block p-6 rounded-full bg-yellow-50 mb-6"><i class="fas fa-trophy text-6xl text-yellow-500"></i></div>
             <h2 class="text-4xl font-extrabold text-slate-800 mb-2">PARABÉNS!</h2>
-            <p class="text-lg text-slate-500 mb-8 font-medium">Você completou o tema <span id="victory-theme" class="text-blue-600 font-bold"></span>!</p>
-            <button onclick="goToSettings()" class="w-full bg-blue-600 text-white text-xl font-bold py-5 rounded-2xl shadow-xl hover:bg-blue-700 transition transform hover:scale-105">NOVO JOGO</button>
+            <p class="text-lg text-slate-500 mb-6 font-medium">Você completou o desafio!</p>
+            <div class="bg-blue-50 p-4 rounded-xl mb-8 border border-blue-100">
+                <p class="text-xs font-bold text-blue-400 uppercase">Recompensa</p>
+                <p class="text-3xl font-extrabold text-yellow-500">+100 MOEDAS</p>
+            </div>
+            <div class="flex flex-col gap-3">
+                <button onclick="resetGame()" class="w-full bg-blue-600 text-white text-lg font-bold py-4 rounded-2xl shadow-xl hover:bg-blue-700 btn-action transition transform active:scale-95">JOGAR NOVAMENTE</button>
+                <button onclick="goToSettings()" class="w-full bg-white text-slate-600 text-lg font-bold py-4 rounded-2xl shadow-sm border-2 border-slate-200 hover:bg-slate-50">VOLTAR AO MENU</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // --- BANCO DE DADOS ---
         const THEMES = {
             "CASA": [{word:"SALA",clue:"Recebemos visitas aqui"},{word:"CAMA",clue:"Móvel para dormir"},{word:"MESA",clue:"Usada para refeições"},{word:"TETO",clue:"Cobre a casa"},{word:"PISO",clue:"Revestimento do chão"},{word:"SOFA",clue:"Assento estofado"},{word:"PIA",clue:"Lavar louça ou mãos"}],
             "CORPO": [{word:"BOCA",clue:"Falar e comer"},{word:"PELE",clue:"Maior órgão do corpo"},{word:"UNHA",clue:"Ponta dos dedos"},{word:"DEDO",clue:"Temos 5 na mão"},{word:"NARIZ",clue:"Sentir cheiro"},{word:"OLHO",clue:"Órgão da visão"},{word:"PE",clue:"Usado para andar"}],
@@ -448,7 +400,6 @@
             "MESES": [{word:"ABRIL",clue:"Descobrimento"},{word:"MAIO",clue:"Mês das mães"},{word:"JULHO",clue:"Férias"},{word:"MARCO",clue:"Fim do verão"},{word:"JUNHO",clue:"Festas juninas"}]
         };
 
-        // --- ESTADO ---
         const state = {
             username: localStorage.getItem('schola_user') || '',
             coins: parseInt(localStorage.getItem('schola_coins')) || 10, 
@@ -462,7 +413,6 @@
             inputElem: document.getElementById('hidden-input')
         };
 
-        // --- INICIALIZAÇÃO ---
         window.onload = () => {
             setupInputListener();
             populateThemes();
@@ -490,7 +440,6 @@
             document.getElementById('game-player-display').innerText = state.username;
             document.getElementById('coin-balance').innerText = state.coins;
             localStorage.setItem('schola_coins', state.coins);
-            
             ['easy', 'medium', 'hard'].forEach(l => {
                 const btn = document.getElementById(`btn-${l}`);
                 btn.classList.remove('ring-4', 'ring-blue-300');
@@ -498,20 +447,12 @@
             });
         }
 
-        function selectDifficulty(lvl) {
-            state.difficulty = lvl;
-            updateUI();
-        }
+        function selectDifficulty(lvl) { state.difficulty = lvl; updateUI(); }
 
         function goToSettings() {
             const name = document.getElementById('username-input').value.trim();
-            if(name) {
-                state.username = name;
-                localStorage.setItem('schola_user', name);
-            } else if (!state.username) {
-                alert("Digite seu nome!");
-                return;
-            }
+            if(name) { state.username = name; localStorage.setItem('schola_user', name); }
+            else if (!state.username) { alert("Digite seu nome!"); return; }
             document.getElementById('screen-login').classList.add('hidden');
             document.getElementById('screen-game').classList.add('hidden');
             document.getElementById('modal-victory').classList.add('hidden');
@@ -519,11 +460,9 @@
             updateUI();
         }
 
-        // --- GERADOR ---
         function startGame() {
             const theme = document.getElementById('theme-select').value;
             state.theme = theme;
-            
             if(state.difficulty === 'easy') state.gridSize = 9; 
             else if(state.difficulty === 'medium') state.gridSize = 11;
             else state.gridSize = 13;
@@ -533,9 +472,7 @@
                 renderClueList();
                 document.getElementById('screen-settings').classList.add('hidden');
                 document.getElementById('screen-game').classList.remove('hidden');
-                // HEADLINE UPDATE
-                document.getElementById('game-theme-display').innerText = "O SEU TEMA É: " + theme;
-                
+                document.getElementById('game-theme-display').innerText = "TEMA: " + theme;
                 state.selectedCell = null;
                 state.selectedWordIndex = -1;
                 document.getElementById('footer-current-clue').innerText = "Toque em um quadrado ou na lista.";
@@ -547,13 +484,11 @@
         function generateCrossword(themeKey) {
             let bestBoard = null;
             let maxWords = 0;
-
             for(let attempt = 0; attempt < 100; attempt++) {
                 const size = state.gridSize;
                 let grid = Array(size).fill(null).map(() => Array(size).fill(null));
                 let placedWords = [];
                 let wordsToTry = JSON.parse(JSON.stringify(THEMES[themeKey]));
-                
                 wordsToTry.sort(() => Math.random() - 0.5);
                 const longest = wordsToTry.reduce((a,b) => a.word.length > b.word.length ? a : b);
                 wordsToTry = wordsToTry.filter(w => w !== longest);
@@ -577,25 +512,19 @@
                         }
                     }
                 }
-
                 if(placedWords.length > maxWords) {
                     maxWords = placedWords.length;
                     bestBoard = { grid: cloneGrid(grid), placedWords: JSON.parse(JSON.stringify(placedWords)) };
                 }
             }
-
             if(maxWords < 2) return false;
 
             const finalWords = bestBoard.placedWords;
             const startCells = [];
             finalWords.forEach(w => {
-                if(!startCells.some(c => c.x === w.x && c.y === w.y)) {
-                    startCells.push({x: w.x, y: w.y});
-                }
+                if(!startCells.some(c => c.x === w.x && c.y === w.y)) startCells.push({x: w.x, y: w.y});
             });
-            
             startCells.sort((a,b) => (a.y - b.y) || (a.x - b.x));
-            
             startCells.forEach((c, index) => {
                 const num = index + 1;
                 finalWords.filter(w => w.x === c.x && w.y === c.y).forEach(w => w.number = num);
@@ -603,35 +532,23 @@
 
             state.wordsOnBoard = finalWords;
             state.grid = Array(state.gridSize).fill(null).map(() => Array(state.gridSize).fill(null));
-            
-            for(let y=0; y<state.gridSize; y++)
-                for(let x=0; x<state.gridSize; x++) 
-                    state.grid[y][x] = { type: 'block' };
+            for(let y=0; y<state.gridSize; y++) for(let x=0; x<state.gridSize; x++) state.grid[y][x] = { type: 'block' };
 
             state.wordsOnBoard.forEach((w, idx) => {
                 for(let i=0; i<w.word.length; i++) {
                     let cx = w.dir === 'H' ? w.x + i : w.x;
                     let cy = w.dir === 'H' ? w.y : w.y + i;
-                    
                     if(state.grid[cy][cx].type !== 'letter') {
-                        state.grid[cy][cx] = {
-                            type: 'letter',
-                            char: w.word[i],
-                            userChar: '',
-                            refs: [], 
-                            displayNumber: null
-                        };
+                        state.grid[cy][cx] = { type: 'letter', char: w.word[i], userChar: '', refs: [], displayNumber: null };
                     }
                     state.grid[cy][cx].refs.push(idx);
                     if(i === 0) state.grid[cy][cx].displayNumber = w.number;
                 }
             });
-
             return true;
         }
 
         function cloneGrid(grid) { return grid.map(row => [...row]); }
-
         function findBestPosition(grid, wordStr, placed, size) {
             const shuffledPlaced = [...placed].sort(() => Math.random() - 0.5);
             for(let p of shuffledPlaced) {
@@ -639,62 +556,40 @@
                 for (let inter of intersections) {
                     const newDir = p.dir === 'H' ? 'V' : 'H';
                     let nx, ny;
-                    if(newDir === 'V') {
-                        nx = p.x + inter.idxB;
-                        ny = p.y - inter.idxA;
-                    } else {
-                        nx = p.x - inter.idxA;
-                        ny = p.y + inter.idxB;
-                    }
-                    if(canPlaceStrict(grid, wordStr, nx, ny, newDir, size)) {
-                        return {x: nx, y: ny, dir: newDir};
-                    }
+                    if(newDir === 'V') { nx = p.x + inter.idxB; ny = p.y - inter.idxA; } 
+                    else { nx = p.x - inter.idxA; ny = p.y + inter.idxB; }
+                    if(canPlaceStrict(grid, wordStr, nx, ny, newDir, size)) return {x: nx, y: ny, dir: newDir};
                 }
             }
             return null;
         }
-
         function getIntersections(wordA, wordB) {
             let res = [];
-            for(let i=0; i<wordA.length; i++) {
-                for(let j=0; j<wordB.length; j++) {
-                    if(wordA[i] === wordB[j]) res.push({idxA: i, idxB: j});
-                }
-            }
+            for(let i=0; i<wordA.length; i++) for(let j=0; j<wordB.length; j++) if(wordA[i] === wordB[j]) res.push({idxA: i, idxB: j});
             return res;
         }
-
         function canPlaceStrict(grid, word, x, y, dir, size) {
             if(x < 0 || y < 0) return false;
             if(dir === 'H' && x + word.length > size) return false;
             if(dir === 'V' && y + word.length > size) return false;
-
             const beforeX = dir === 'H' ? x - 1 : x;
             const beforeY = dir === 'H' ? y : y - 1;
             const afterX = dir === 'H' ? x + word.length : x;
             const afterY = dir === 'H' ? y : y + word.length;
-
             if(beforeX >= 0 && beforeY >= 0 && grid[beforeY][beforeX] !== null) return false;
             if(afterX < size && afterY < size && grid[afterY][afterX] !== null) return false;
-
             for(let i=0; i<word.length; i++) {
                 let cx = dir === 'H' ? x + i : x;
                 let cy = dir === 'H' ? y : y + i;
                 const cell = grid[cy][cx];
-                
                 if(cell !== null && cell !== word[i]) return false;
-                
                 if(cell === null) {
-                    if(dir === 'H') {
-                        if((y > 0 && grid[y-1][cx] !== null) || (y < size-1 && grid[y+1][cx] !== null)) return false;
-                    } else {
-                        if((x > 0 && grid[cy][x-1] !== null) || (x < size-1 && grid[cy][x+1] !== null)) return false;
-                    }
+                    if(dir === 'H') { if((y > 0 && grid[y-1][cx] !== null) || (y < size-1 && grid[y+1][cx] !== null)) return false; }
+                    else { if((x > 0 && grid[cy][x-1] !== null) || (x < size-1 && grid[cy][x+1] !== null)) return false; }
                 }
             }
             return true;
         }
-
         function placeWordIfFits(grid, wObj, x, y, dir, size) {
             if(!canPlaceStrict(grid, wObj.word, x, y, dir, size)) return false;
             for(let i=0; i<wObj.word.length; i++) {
@@ -705,29 +600,22 @@
             return true;
         }
 
-        // --- RENDERIZAÇÃO ---
         function renderGrid() {
             const wrapper = document.getElementById('grid-wrapper');
             wrapper.innerHTML = '';
-            
             const gridEl = document.createElement('div');
             gridEl.className = 'crossword-grid';
-            // Ajustamos o grid para ser responsivo ao tamanho definido
             gridEl.style.gridTemplateColumns = `repeat(${state.gridSize}, 1fr)`;
-
             for(let y=0; y<state.gridSize; y++) {
                 for(let x=0; x<state.gridSize; x++) {
                     const data = state.grid[y][x];
                     const cell = document.createElement('div');
-                    
-                    if(data.type === 'block') {
-                        cell.className = 'cell block';
-                    } else {
+                    if(data.type === 'block') { cell.className = 'cell block'; } 
+                    else {
                         cell.className = 'cell active';
                         cell.dataset.x = x;
                         cell.dataset.y = y;
                         cell.onclick = (e) => handleCellClick(x, y, e);
-
                         if(data.displayNumber) {
                             const num = document.createElement('span');
                             num.className = 'cell-number';
@@ -739,7 +627,6 @@
                         letSpan.id = `cell-char-${x}-${y}`;
                         letSpan.innerText = data.userChar;
                         cell.appendChild(letSpan);
-
                         if(data.correct) cell.classList.add('correct');
                     }
                     gridEl.appendChild(cell);
@@ -753,7 +640,8 @@
             const vList = document.getElementById('clues-vertical-list');
             hList.innerHTML = '';
             vList.innerHTML = '';
-
+            
+            // Garantir que todas as palavras sejam listadas
             const hWords = state.wordsOnBoard.filter(w => w.dir === 'H').sort((a,b) => a.number - b.number);
             const vWords = state.wordsOnBoard.filter(w => w.dir === 'V').sort((a,b) => a.number - b.number);
 
@@ -761,19 +649,19 @@
                 const div = document.createElement('div');
                 div.className = 'clue-item';
                 div.id = `clue-item-${state.wordsOnBoard.indexOf(w)}`;
-                div.innerHTML = `<span class="clue-number-badge">${w.number}</span> <span>${w.clue}</span>`;
+                div.innerHTML = `<span class="clue-number">${w.number}-</span> ${w.clue}`;
                 div.onclick = () => selectWordByIndex(state.wordsOnBoard.indexOf(w));
                 return div;
             };
+            
+            if(hWords.length > 0) hWords.forEach(w => hList.appendChild(createItem(w)));
+            else hList.innerHTML = '<div style="padding:5px; color:#999; font-size:0.8rem;">Nenhuma</div>';
 
-            hWords.forEach(w => hList.appendChild(createItem(w)));
-            vWords.forEach(w => vList.appendChild(createItem(w)));
+            if(vWords.length > 0) vWords.forEach(w => vList.appendChild(createItem(w)));
+            else vList.innerHTML = '<div style="padding:5px; color:#999; font-size:0.8rem;">Nenhuma</div>';
         }
 
-        // --- INTERAÇÃO ---
-        function focusInput() {
-            if(state.selectedCell) state.inputElem.focus();
-        }
+        function focusInput() { if(state.selectedCell) state.inputElem.focus(); }
 
         function selectWordByIndex(idx) {
             state.selectedWordIndex = idx;
@@ -786,7 +674,6 @@
         function handleCellClick(x, y, e) {
             e.stopPropagation();
             const cellData = state.grid[y][x];
-            
             if(state.selectedCell && state.selectedCell.x === x && state.selectedCell.y === y) {
                 if(cellData.refs.length > 1) {
                     const currRefIdx = cellData.refs.indexOf(state.selectedWordIndex);
@@ -809,28 +696,23 @@
 
             if(state.selectedWordIndex !== -1) {
                 const w = state.wordsOnBoard[state.selectedWordIndex];
-                
                 for(let i=0; i<w.word.length; i++) {
                     let cx = w.dir === 'H' ? w.x + i : w.x;
                     let cy = w.dir === 'H' ? w.y : w.y + i;
                     document.querySelector(`.cell[data-x='${cx}'][data-y='${cy}']`).classList.add('highlighted-word');
                 }
-
                 const listItem = document.getElementById(`clue-item-${state.selectedWordIndex}`);
                 if(listItem) {
                     listItem.classList.add('active-clue');
                     listItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }
-
-                document.getElementById('footer-current-clue').innerText = `${w.number} (${w.dir === 'H' ? 'Horiz.' : 'Vert.'}): ${w.clue}`;
+                document.getElementById('footer-current-clue').innerText = `${w.number}: ${w.clue}`;
             }
-
             if(state.selectedCell) {
                 document.querySelector(`.cell[data-x='${state.selectedCell.x}'][data-y='${state.selectedCell.y}']`).classList.add('selected');
             }
         }
 
-        // --- INPUT ---
         function setupInputListener() {
             const input = state.inputElem;
             input.addEventListener('input', (e) => {
@@ -847,10 +729,7 @@
         function insertLetter(char) {
             const {x, y} = state.selectedCell;
             const data = state.grid[y][x];
-            if(data.correct) {
-                moveCursor(1);
-                return;
-            }
+            if(data.correct) { moveCursor(1); return; }
             data.userChar = char;
             document.getElementById(`cell-char-${x}-${y}`).innerText = char;
             checkWordCompletion(state.selectedWordIndex);
@@ -874,9 +753,7 @@
                     data.userChar = '';
                     document.getElementById(`cell-char-${x}-${y}`).innerText = '';
                 }
-            } else {
-                moveCursor(-1);
-            }
+            } else { moveCursor(-1); }
         }
 
         function moveCursor(step) {
@@ -894,9 +771,7 @@
         function checkWordCompletion(wIdx) {
             const w = state.wordsOnBoard[wIdx];
             if(w.solved) return;
-            
-            let typed = "";
-            let filled = true;
+            let typed = "", filled = true;
             for(let i=0; i<w.word.length; i++) {
                 let cx = w.dir === 'H' ? w.x + i : w.x;
                 let cy = w.dir === 'H' ? w.y : w.y + i;
@@ -904,7 +779,6 @@
                 if(!cell.userChar) filled = false;
                 typed += cell.userChar;
             }
-
             if(filled) {
                 if(typed === w.word) {
                     w.solved = true;
@@ -919,10 +793,9 @@
                     document.getElementById(`clue-item-${wIdx}`).classList.add('solved-clue');
                     showFeedback('success');
                     if(state.wordsOnBoard.every(wd => wd.solved)) {
-                        setTimeout(() => {
-                            document.getElementById('victory-theme').innerText = state.theme;
-                            document.getElementById('modal-victory').classList.remove('hidden');
-                        }, 1000);
+                        state.coins += 100;
+                        updateUI();
+                        setTimeout(() => document.getElementById('modal-victory').classList.remove('hidden'), 1000);
                     }
                 } else {
                     showFeedback('error');
@@ -932,9 +805,8 @@
                             let cy = w.dir === 'H' ? w.y : w.y + i;
                             const cellData = state.grid[cy][cx];
                             if(!cellData.correct) {
-                                const cellEl = document.querySelector(`.cell[data-x='${cx}'][data-y='${cy}']`);
-                                cellEl.classList.add('wrong');
-                                setTimeout(() => cellEl.classList.remove('wrong'), 500);
+                                document.querySelector(`.cell[data-x='${cx}'][data-y='${cy}']`).classList.add('wrong');
+                                setTimeout(() => document.querySelector(`.cell[data-x='${cx}'][data-y='${cy}']`).classList.remove('wrong'), 500);
                                 cellData.userChar = '';
                                 document.getElementById(`cell-char-${cx}-${cy}`).innerText = '';
                             }
@@ -949,65 +821,37 @@
         function showFeedback(type) {
             const el = document.getElementById('feedback-message');
             el.classList.remove('hidden');
-            if(type === 'success') {
-                el.innerHTML = `<div class="bg-white border-4 border-green-500 p-6 rounded-2xl shadow-2xl flex flex-col items-center justify-center animate-bounce"><i class="fas fa-check-circle text-green-500 text-5xl"></i><h3 class="font-bold text-green-800 text-2xl mt-2">CORRETO!</h3></div>`;
-            } else {
-                el.innerHTML = `<div class="bg-white border-4 border-red-500 p-6 rounded-2xl shadow-2xl flex flex-col items-center justify-center animate-pulse"><i class="fas fa-times-circle text-red-500 text-5xl"></i><h3 class="font-bold text-red-800 text-2xl mt-2">TENTE DE NOVO</h3></div>`;
-            }
+            el.innerHTML = type === 'success' 
+                ? `<div class="bg-white border-4 border-green-500 p-6 rounded-2xl shadow-2xl flex flex-col items-center justify-center animate-bounce"><i class="fas fa-check-circle text-green-500 text-5xl"></i><h3 class="font-bold text-green-800 text-2xl mt-2">CORRETO!</h3></div>`
+                : `<div class="bg-white border-4 border-red-500 p-6 rounded-2xl shadow-2xl flex flex-col items-center justify-center animate-pulse"><i class="fas fa-times-circle text-red-500 text-5xl"></i><h3 class="font-bold text-red-800 text-2xl mt-2">TENTE DE NOVO</h3></div>`;
             setTimeout(() => el.classList.add('hidden'), 1500);
         }
 
-        // --- NOVA FUNÇÃO: USAR DICA ---
         function useHint() {
-            if(!state.selectedCell) {
-                alert("Selecione um quadrado primeiro!");
-                return;
-            }
-            
-            if(state.coins < 2) {
-                alert("Você precisa de 2 moedas para usar uma dica!");
-                return;
-            }
-
+            if(!state.selectedCell) { alert("Selecione um quadrado primeiro!"); return; }
+            if(state.coins < 2) { alert("Você precisa de 2 moedas!"); return; }
             const {x, y} = state.selectedCell;
             const cellData = state.grid[y][x];
-
-            // Se já está correto, não gasta dica
-            if(cellData.correct) {
-                moveCursor(1);
-                return;
-            }
-
-            // Consumir moedas
+            if(cellData.correct) { moveCursor(1); return; }
             state.coins -= 2;
             updateUI();
-
-            // Revelar letra correta
             const correctChar = cellData.char;
             cellData.userChar = correctChar;
             document.getElementById(`cell-char-${x}-${y}`).innerText = correctChar;
-            
-            // Verifica se a palavra completou com essa dica
             checkWordCompletion(state.selectedWordIndex);
-            
-            // Se não completou, move para o próximo
-            if(!state.wordsOnBoard[state.selectedWordIndex].solved) {
-                moveCursor(1);
-            }
+            if(!state.wordsOnBoard[state.selectedWordIndex].solved) moveCursor(1);
         }
 
         function resetGame() {
-            if(confirm("Reiniciar o jogo?")) {
-                state.grid.flat().forEach(c => {
-                    if(c.type === 'letter') { c.userChar = ''; c.correct = false; }
-                });
-                state.wordsOnBoard.forEach(w => w.solved = false);
-                renderGrid();
-                renderClueList();
-                state.selectedCell = null;
-                state.selectedWordIndex = -1;
-                refreshStyles();
-            }
+            if(document.getElementById('modal-victory').classList.contains('hidden') && !confirm("Reiniciar o jogo?")) return;
+            document.getElementById('modal-victory').classList.add('hidden');
+            state.grid.flat().forEach(c => { if(c.type === 'letter') { c.userChar = ''; c.correct = false; } });
+            state.wordsOnBoard.forEach(w => w.solved = false);
+            renderGrid();
+            renderClueList();
+            state.selectedCell = null;
+            state.selectedWordIndex = -1;
+            refreshStyles();
         }
     </script>
 </body>
